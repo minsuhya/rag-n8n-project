@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+    volumes:
+      - ./chroma_db:/data/chroma_db
+      - ./my-docs/docs:/data/shared/my-docs/docs
+    networks:
+      - rag-network
+    depends_on:
+      - chromadb
+      - fastapi
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8001"
+    command: ["--path", "/chroma_db", "--host", "0.0.0.0", "--port", "8001"]
+    volumes:
+      - ./chroma_db:/chroma_db
+    networks:
+      - rag-network
+
+  fastapi:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_db:/app/chroma_db
+      - ./my-docs/docs:/app/my-docs/docs
+    networks:
+      - rag-network
+    depends_on:
+      - chromadb
+
+  streamlit:
+    build:
+      context: ./streamlit
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    networks:
+      - rag-network
+    depends_on:
+      - n8n
+
+networks:
+  rag-network:
+    driver: bridge 
